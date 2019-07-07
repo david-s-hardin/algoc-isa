@@ -37,7 +37,7 @@ enum leg64regType {PC, SP, REG, DMEM, CMEM};
 
 //             0    1     2  3    4    5    6    7    8     9      10   11   12
 enum leg64ops {BAD, ADD, ADDI, B, BEQ, BHI, BLS, BNE, CMP, CMPI, CONST, MUL, NOP, 
-//             13   14    15
+//             13   14    15    16   17
                SUB, SUBI, HALT, LDR, STR};
 
 
@@ -46,7 +46,7 @@ enum leg64ops {BAD, ADD, ADDI, B, BEQ, BHI, BLS, BNE, CMP, CMPI, CONST, MUL, NOP
 #define DMEM_SZ 4096
 #define CMEM_SZ 1024
 
-// leg64 machine state
+// LEG64 machine state
 
 struct leg64St {
   ui10 pc;

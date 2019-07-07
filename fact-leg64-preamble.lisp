@@ -61,7 +61,7 @@
                     ((as I :VALUE (ag 'REGS :BASE))
                      (ag I (ag 'REGS :BASE)))
                     ((as I :VALUE (ag 'DMEM :BASE))
-                     (ag I (ag 'DMEM :BASE))
+                     (ag I (ag 'DMEM :BASE)))
                     ((as 'PC :VALUE :BASE) (ag 'PC :BASE))
                     ;;((as 'ERR :VALUE :BASE) (ag 'ERR :BASE))
                     )

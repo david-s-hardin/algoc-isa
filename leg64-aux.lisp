@@ -59,8 +59,11 @@
    (:REWRITE (:REWRITE ACL2::MOD-X-Y-=-X . 3))
    :TOP :BASH))
 
+
 ;; Codewalker requires the 'state' parameter to be the first parameter; for the 
-;; rac-generated version, the state parameter is the last parameter.
+;; rac-generated steps primitive (leg64steps-loop-0) called by leg64steps, the
+;; state parameter is the last parameter.  Thus, we rewrite leg64steps-loop-0
+;; slightly, and call the result leg64stepn.
 
 (DEFUN LEG64STEPN (S N)
  (DECLARE (XARGS :MEASURE (NFIX N)))
@@ -71,12 +74,24 @@
 
 ;; Justification for leg64stepsn
 
-;; (defthmd leg64stepn-eq-leg64steps--thm
-;;   (= (leg64stepn s n) (LEG64STEPS-LOOP-0 N N S))
-;;   :hints (("Goal" :in-theory (disable leg64step))))
+(defthmd leg64stepn-eq-leg64steps-aux--thm
+  (= (leg64stepn s i) (leg64steps-loop-0 i n s))
+  :hints (("Goal" :in-theory (disable leg64step))))
+
+(DEFTHMD LEG64STEPN-EQ-LEGSTEPS--THM
+   (= (LEG64STEPN S N) (LEG64STEPS S N))
+   :INSTRUCTIONS
+   ((:DIVE 2)
+    (:REWRITE LEG64STEPS)
+    :TOP
+    (:PROVE
+         :HINTS (("Goal" :USE (:INSTANCE LEG64STEPN-EQ-LEG64STEPS-AUX--THM
+                                         (I N)))))))
+
 
 ;; Loop stopper
 (in-theory (disable ACL2::FUNCTIONAL-COMMUTATIVITY-OF-MINUS-*-LEFT))
+
 
 (defthm leg64stepn-plus--thm
   (implies (and (integerp c1) (<= 0 c1)

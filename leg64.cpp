@@ -209,6 +209,34 @@ leg64St do_CONST(leg64St s) {
 }
 
 
+// (LSL a b c): Logical shift reg b left by the number of bits indicated by
+// the constant amount (c && 0x3f), and store in reg a.
+
+leg64St do_LSL(leg64St s) {
+  s.regs[s.op1] = s.regs[s.op2] << (s.op3 & 0x3f);
+  return s;
+}
+
+// (LSR a b c): Logical shift reg b right by the number of bits indicated by
+// the constant amount (c && 0x3f), and store in reg a.
+
+leg64St do_LSR(leg64St s) {
+  s.regs[s.op1] = s.regs[s.op2] >> (s.op3 & 0x3f);
+  return s;
+}
+
+// (ASR a b c): Arithmetic shift reg b right by the number of bits indicated by
+// the constant amount (c && 0x3f), and store in reg a.
+
+#define W 64
+
+leg64St do_ASR(leg64St s) {
+  s.regs[s.op1] = (s.regs[s.op2] >> (s.op3 & 0x3f)) |
+                  ((0-(s.regs[s.op2] >> (W-1))) << (W-(s.op3 & 0x3f)));
+  return s;
+}
+
+
 // (MUL a b c): Set the value of the first reg 
 // to the product of the second and third regs.
 
@@ -273,6 +301,20 @@ leg64St do_BNE(leg64St s) {
   return s;
 }
 
+// (BLO k): Adjust the pc by k if unsigned lower
+// (C == 0)
+
+leg64St do_BLO(leg64St s) {
+  if (s.C == 0) {
+    if (s.op1 > 127) {
+      s.pc = s.pc + (s.op1 - 256);
+    } else {
+      s.pc = s.pc + s.op1;
+    }
+  }
+  return s;
+}
+
 // (BLS k): Adjust the pc by k if unsigned lower or same
 // (C == 0 || Z == 1)
 
@@ -288,10 +330,52 @@ leg64St do_BLS(leg64St s) {
 }
 
 // (BHI k): Adjust the pc by k if unsigned higher
-// (C == 1)
+// (C == 1) && (Z == 0)
 
 leg64St do_BHI(leg64St s) {
+  if ((s.C == 1) && (s.Z == 0)) {
+    if (s.op1 > 127) {
+      s.pc = s.pc + (s.op1 - 256);
+    } else {
+      s.pc = s.pc + s.op1;
+    }
+  }
+  return s;
+}
+
+// (BHS k): Adjust the pc by k if unsigned higher or same
+// (C == 1)
+
+leg64St do_BHS(leg64St s) {
   if (s.C == 1) {
+    if (s.op1 > 127) {
+      s.pc = s.pc + (s.op1 - 256);
+    } else {
+      s.pc = s.pc + s.op1;
+    }
+  }
+  return s;
+}
+
+// (BMI k): Adjust the pc by k if minus
+// (N == 1)
+
+leg64St do_BMI(leg64St s) {
+  if (s.N == 1) {
+    if (s.op1 > 127) {
+      s.pc = s.pc + (s.op1 - 256);
+    } else {
+      s.pc = s.pc + s.op1;
+    }
+  }
+  return s;
+}
+
+// (BPL k): Adjust the pc by k if plus
+// (N == 0)
+
+leg64St do_BPL(leg64St s) {
+  if (s.N == 0) {
     if (s.op1 > 127) {
       s.pc = s.pc + (s.op1 - 256);
     } else {
@@ -323,45 +407,57 @@ leg64St do_NOP(leg64St s) {
 leg64St do_Inst(leg64St s) {
   ui8 opc = s.opcode;
   
-  if (opc == ADD) {
+  if (opc == NOP) {
+    return do_NOP(s);
+  } else if (opc == HALT) {
+    return do_HALT(s);
+  } else if (opc == ADD) {
      return do_ADD(s);
   } else if (opc == ADDI) {
     return do_ADDI(s);
-  } else if (opc == B) {
-    return do_B(s);
-  } else if (opc == BEQ) {
-    return do_BEQ(s);
-  } else if (opc == BHI) {
-    return do_BHI(s);
-  } else if (opc == BLS) {
-    return do_BLS(s);
-  } else if (opc == BNE) {
-    return do_BNE(s);
+  } else if (opc == ASR) {
+     return do_ASR(s);
   } else if (opc == CMP) {
     return do_CMP(s);
   } else if (opc == CMPI) {
     return do_CMPI(s);
   } else if (opc == CONST) {
     return do_CONST(s);
+  } else if (opc == LSL) {
+    return do_LSL(s);
+  } else if (opc == LSR) {
+    return do_LSR(s);
   } else if (opc == MUL) {
     return do_MUL(s);
-  } else if (opc == NOP) {
-    return do_NOP(s);
   } else if (opc == SUB) {
    return do_SUB(s);
   } else if (opc == SUBI) {
     return do_SUBI(s);
-  } else if (opc == HALT) {
-    return do_HALT(s);
   } else if (opc == LDR) {
     return do_LDR(s);
   } else if (opc == STR) {
     return do_STR(s);
+  } else if (opc == B) {
+    return do_B(s);
+  } else if (opc == BEQ) {
+    return do_BEQ(s);
+  } else if (opc == BHI) {
+    return do_BHI(s);
+  } else if (opc == BHS) {
+    return do_BHS(s);
+  } else if (opc == BLO) {
+    return do_BLO(s);
+  } else if (opc == BLS) {
+    return do_BLS(s);
+  } else if (opc == BMI) {
+    return do_BMI(s);
+  } else if (opc == BNE) {
+    return do_BNE(s);
+  } else if (opc == BPL) {
+    return do_BPL(s);
   } else {
     return do_HALT(s);
-    //   s.pc = s.pc - 1;
     //    s.err = 3;
-    return s;
   }
 }
 
@@ -379,13 +475,30 @@ leg64St leg64steps(leg64St s, uint count) {
   return s;
 }
 
-// Produce by online GCC compiler at -O3 optimization
+
+leg64St setupDMEM(ui12 base, leg64St s) {
+  s.dmem[base]   = 10;
+  s.dmem[base+1] = 43;
+  s.dmem[base+2] = 4;
+  s.dmem[base+3] = 22;
+  s.dmem[base+4] = 7;
+  s.dmem[base+5] = 14;
+  s.dmem[base+6] = 43;
+  s.dmem[base+7] = 92;
+  s.dmem[base+8] = 22;
+  s.dmem[base+9] = 43;
+
+  return s;
+}
+
+
+// Produced by online GCC compiler at -O3 optimization
 
 leg64St doFactO3(ui8 n, leg64St s) {
 
   //  s = resetAll(s);
 
-  // The algorithm of *fact-program* is as follows.  reg[0] holds the input.
+  // The algorithm of *fact-program* is as follows.  regs[0] holds the input.
 
   s.regs[0] = n;
 
@@ -420,10 +533,10 @@ leg64St doFactO3(ui8 n, leg64St s) {
   // .L2  (ADDI 0 1 0)    ; 8   r0 <- r1
   s.cmem[k] = ((ADDI & 0xff) << 24) | (1 << 8) | 0; k=k+1;
 
-  //      (HALT)))        ; 9   halt with factorial result in reg[1]
+  //      (HALT)))        ; 9   halt with factorial result in regs[1]
   s.cmem[k] = ((HALT & 0xff) << 24) | 0;
 
-  s = leg64steps(s, ((4 + ((uint)n * 4)) + 2));
+  s = leg64steps(s, ((4 + ((uint)(n-1) * 4)) + 2));
 
   return s;
 }
@@ -433,7 +546,7 @@ leg64St doFact(ui8 n, leg64St s) {
 
   //  s = resetAll(s);
 
-  // The algorithm of *fact-program* is as follows.  reg[0] holds the input.
+  // The algorithm of *fact-program* is as follows.  regs[0] holds the input.
 
   s.regs[0] = n;
 
@@ -453,8 +566,8 @@ leg64St doFact(ui8 n, leg64St s) {
   //      (CMP 0 2))      ; 3
   s.cmem[k] = ((CMP & 0xff) << 24) | (2 << 8) | 0; k=k+1;
 
-  //      (BHI .L2)       ; 4
-  s.cmem[k] = ((BHI & 0xff) << 24) | (5 << 16) | 0; k=k+1;
+  //      (BHS .L2)       ; 4
+  s.cmem[k] = ((BHS & 0xff) << 24) | (5 << 16) | 0; k=k+1;
 
   //      (CMPI 0 0)      ; 5
   s.cmem[k] = ((CMPI & 0xff) << 24) | 0; k=k+1;
@@ -472,12 +585,77 @@ leg64St doFact(ui8 n, leg64St s) {
   s.cmem[k] = ((B & 0xff) << 24) | (0xfb << 16) | 0; k=k+1;
 
   // .L2  (ADDI 0 1 0)    ; 10  r0 <- r1
-  s.cmem[k] = ((ADDI & 0xfb) << 24) | (1 << 8) | 0; k=k+1;
+  s.cmem[k] = ((ADDI & 0xff) << 24) | (1 << 8) | 0; k=k+1;
 
-  //      (HALT)))        ; 11  halt with factorial result in reg[1]
+  //      (HALT)))        ; 11  halt with factorial result in regs[1]
   s.cmem[k] = ((HALT & 0xff) << 24) | 0;
 
-  s = leg64steps(s, (5 + ((uint)n * 5) + 3));
+  s = leg64steps(s, (5 + ((uint)n * 5) + 4));
+
+  return s;
+}
+
+
+leg64St doSumArr(ui12 arr, ui12 n, leg64St s) {
+
+  //  s = resetAll(s);
+
+  // The algorithm of sumarr is as follows.  regs[0] holds the base address of
+  // the array, and regs[1] hold the number of array elements to add, n.
+
+  s.regs[0] = arr;
+
+  s.regs[1] = n;
+
+  ui10 k = 0;    // Beginning code address
+
+  //        ADDI  r5, r0, #0     ; 0    r5 <- r0 (array base)
+  s.cmem[k] = ((ADDI & 0xff) << 24) | (5 << 16) | 0; k=k+1;
+
+  //        CONST r0, 0          ; 1    r0 (sum) <- 0
+  s.cmem[k] = ((CONST & 0xff) << 24) | 0; k=k+1;
+
+  //        CMPI  r1, #0         ; 2    n =?= 0
+  s.cmem[k] = ((CMPI & 0xff) << 24) | (1 << 16) | 0; k=k+1;
+
+  //        BEQ   .L4            ; 3    branch to done if true
+  s.cmem[k] = ((BEQ & 0xff) << 24) | (10 << 16) | 0; k=k+1;
+
+  //        CONST r2, 0          ; 4    r2 (j) <- 0
+  s.cmem[k] = ((CONST & 0xff) << 24) | (2 << 16) | 0; k=k+1;
+
+  //  .L3:  CMP   r1, r2         ; 5    n =?= j
+  s.cmem[k] = ((CMP & 0xff) << 24) | (1 << 16) | (2 << 8) | 0; k=k+1;
+
+  //        BLS   .L4            ; 6    branch if n <= j
+  s.cmem[k] = ((BLS & 0xff) << 24) | (7 << 16) | 0; k=k+1;
+
+  //        ADDI  r3, r2, 0      ; 7    r3 <- j
+  s.cmem[k] = ((ADDI & 0xff) << 24) | (3 << 16) | (2 << 8) | 0; k=k+1;
+
+  //        LSL   r3, r3, 0      ; 8    offset <- j << 0
+  s.cmem[k] = ((LSL & 0xff) << 24) | (3 << 16) | (3 << 8) | 0; k=k+1;
+
+  //        ADD   r3, r5, r3     ; 9    r3 <- base + offset
+  s.cmem[k] = ((ADD & 0xff) << 24) | (3 << 16) | (5 << 8) | 3; k=k+1;
+
+  //        LDR   r4, r3         ; 10   r4 <- array[j]
+  s.cmem[k] = ((LDR & 0xff) << 24) | (4 << 16) | (3 << 8) | 0; k=k+1;
+
+  //        ADD   r0, r0, r4     ; 11   sum <- sum + array[j]
+  s.cmem[k] = ((ADD & 0xff) << 24) | 4; k=k+1;
+
+  //        ADDI  r2, r2, #1     ; 12   j <- j++
+  s.cmem[k] = ((ADDI & 0xff) << 24) | (2 << 16) | (2 << 8) | 1; k=k+1;
+
+  //        B     .L3            ; 13   branch to top of loop .L3
+  s.cmem[k] = ((B & 0xff) << 24) | (0xf7 << 16) | 0; k=k+1;
+
+  // .L4:  HALT                 ; 14   halt with sum in regs[0]
+  s.cmem[k] = ((HALT & 0xff) << 24) | 0;
+  
+  s = leg64steps(s, (5 + ((uint)n * 9) + 3));
+  // s = leg64steps(s, 23);
 
   return s;
 }
@@ -487,10 +665,10 @@ leg64St doFact(ui8 n, leg64St s) {
 
 int main (int argc, char *argv[]) {
 
-  cout << "Reset" << endl;
-
   leg64St s;
-
+  
+  cout << endl << "FactO3" << endl;
+  
   s = resetAll(s);
   s.pc = 0;
 
@@ -499,20 +677,66 @@ int main (int argc, char *argv[]) {
   cout << "r0 = " << s.regs[0] << endl;
   cout << "r1 = " << s.regs[1] << endl;
   cout << "pc = " << s.pc << endl;
-  //  cout << "err = " << s.err << endl;
-  //  cout << "insCount = " << s.insCount << endl;
 
+  
+  cout << endl << "Fact" << endl;
+  
   s = resetAll(s);
   s.pc = 0;
-
+  
   s = doFact(20, s);
 
   cout << "r0 = " << s.regs[0] << endl;
   cout << "r1 = " << s.regs[1] << endl;
   cout << "pc = " << s.pc << endl;
-  //  cout << "err = " << s.err << endl;
-  //  cout << "insCount = " << s.insCount << endl;
+
+
+  cout << endl << "SumArr" << endl;
   
+  s = resetAll(s);
+  s.pc = 0;
+
+  s = setupDMEM(8, s);
+                              
+  s = doSumArr(8, 6, s);
+
+  cout << "r0 = " << s.regs[0] << endl;
+  cout << "r1 = " << s.regs[1] << endl;
+  cout << "r2 = " << s.regs[2] << endl;
+  cout << "r3 = " << s.regs[3] << endl;
+  cout << "r4 = " << s.regs[4] << endl;
+  cout << "r5 = " << s.regs[5] << endl;
+  cout << "pc = " << s.pc << endl;
+
+
+  cout << endl << "SumArr" << endl;
+  
+  s = resetAll(s);
+  s.pc = 0;
+
+  s = setupDMEM(8, s);
+
+  s = doSumArr(8, 10, s);
+
+  cout << "r0 = " << s.regs[0] << endl;
+  cout << "r1 = " << s.regs[1] << endl;
+  cout << "pc = " << s.pc << endl;
+
+
+  cout << endl << "SumArr" << endl;
+  
+  s = resetAll(s);
+  s.pc = 0;
+
+  s = setupDMEM(8, s);
+
+  s = doSumArr(4, 8, s);
+
+  cout << "r0 = " << s.regs[0] << endl;
+  cout << "r1 = " << s.regs[1] << endl;
+  cout << "pc = " << s.pc << endl;
+
+
   return 0;
 }
 

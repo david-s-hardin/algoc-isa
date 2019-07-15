@@ -7,11 +7,19 @@
 
 (include-book "leg64")
 
-(INCLUDE-BOOK "rtl/rel11/lib/rac" :DIR :SYSTEM)
-(INCLUDE-BOOK "rtl/rel11/lib/bits" :dir :system)
-(include-book "arithmetic/top-with-meta" :dir :system)
-(include-book "std/basic/arith-equivs" :dir :system)
+(include-book "rtl/rel11/lib/bits" :dir :system)
+
 (include-book "arithmetic-5/top" :dir :system)
+
+;; Unfortunately, there are some conflicts between arithmetic-5 and this library
+;; (especially the "basic" book) that can severely slow down some proofs.  Much of 
+;; this can be avoided by disabling the following lemmas:
+
+(in-theory #!acl2(disable |(mod (+ x y) z) where (<= 0 z)| |(mod (+ x (- (mod a b))) y)|
+                          |(mod (mod x y) z)| |(mod (+ x (mod a b)) y)| mod-cancel-*-const
+			  cancel-mod-+ reduce-additive-constant-< ash-to-floor |(floor x 2)|
+			  |(equal x (if a b c))| |(equal (if a b c) x)| |(logior 1 x)|
+			  mod-theorem-one-b |(mod (- x) y)|))
 
 (DEFTHM BITS-UPPER-BOUND
   (IMPLIES (AND (INTEGERP I) (INTEGERP J))
@@ -45,11 +53,11 @@
    (EQUAL (BITS I J 0) I))
   :INSTRUCTIONS
   (:PROMOTE
-   (:DV 1)
+   (:DIVE 1)
    (:REWRITE BITS)
    (:= (FL (* (MOD I (EXPT 2 (+ 1 J)))
               (/ (EXPT 2 0)))))
-   (:DV 1 2)
+   (:DIVE 1 2)
    (:= 1)
    :UP
    (:CLAIM (INTEGERP (MOD I (EXPT 2 (+ 1 J)))))
@@ -87,10 +95,6 @@
     (:PROVE
          :HINTS (("Goal" :USE (:INSTANCE LEG64STEPN-EQ-LEG64STEPS-AUX--THM
                                          (I N)))))))
-
-
-;; Loop stopper
-(in-theory (disable ACL2::FUNCTIONAL-COMMUTATIVITY-OF-MINUS-*-LEFT))
 
 
 (defthm leg64stepn-plus--thm

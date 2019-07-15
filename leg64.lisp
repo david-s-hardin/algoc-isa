@@ -45,7 +45,7 @@
 (DEFUN RESETALL (S)
        (LET* ((S (AS 'PC (BITS 0 9 0) S))
               (S (AS 'SP (BITS 0 11 0) S))
-              (S (AS 'OPCODE (BITS 12 7 0) S))
+              (S (AS 'OPCODE (BITS 1 7 0) S))
               (S (AS 'OP1 (BITS 0 7 0) S))
               (S (AS 'OP2 (BITS 0 7 0) S))
               (S (AS 'OP3 (BITS 0 7 0) S))
@@ -60,7 +60,7 @@
 (DEFUN RESETALLBUTCMEM (S)
        (LET* ((S (AS 'PC (BITS 0 9 0) S))
               (S (AS 'SP (BITS 0 11 0) S))
-              (S (AS 'OPCODE (BITS 12 7 0) S))
+              (S (AS 'OPCODE (BITS 1 7 0) S))
               (S (AS 'OP1 (BITS 0 7 0) S))
               (S (AS 'OP2 (BITS 0 7 0) S))
               (S (AS 'OP3 (BITS 0 7 0) S))
@@ -163,6 +163,37 @@
                 (AS (AG 'OP1 S) K (AG 'REGS S))
                 S)))
 
+(DEFUN DO_LSL (S)
+       (AS 'REGS
+           (AS (AG 'OP1 S)
+               (BITS (ASH (AG (AG 'OP2 S) (AG 'REGS S))
+                          (LOGAND (AG 'OP3 S) 63))
+                     63 0)
+               (AG 'REGS S))
+           S))
+
+(DEFUN DO_LSR (S)
+       (AS 'REGS
+           (AS (AG 'OP1 S)
+               (BITS (ASH (AG (AG 'OP2 S) (AG 'REGS S))
+                          (- (LOGAND (AG 'OP3 S) 63)))
+                     63 0)
+               (AG 'REGS S))
+           S))
+
+(DEFUN DO_ASR (S)
+       (AS 'REGS
+           (AS (AG 'OP1 S)
+               (BITS (LOGIOR (ASH (AG (AG 'OP2 S) (AG 'REGS S))
+                                  (- (LOGAND (AG 'OP3 S) 63)))
+                             (ASH (- 0
+                                     (ASH (AG (AG 'OP2 S) (AG 'REGS S))
+                                          (- (- 64 1))))
+                                  (- 64 (LOGAND (AG 'OP3 S) 63))))
+                     63 0)
+               (AG 'REGS S))
+           S))
+
 (DEFUN DO_MUL (S)
        (AS 'REGS
            (AS (AG 'OP1 S)
@@ -224,6 +255,18 @@
                      S))
             S))
 
+(DEFUN DO_BLO (S)
+       (IF1 (LOG= (AG 'C S) 0)
+            (IF1 (LOG> (AG 'OP1 S) 127)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (- (AG 'OP1 S) 256))
+                           9 0)
+                     S)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (AG 'OP1 S)) 9 0)
+                     S))
+            S))
+
 (DEFUN DO_BLS (S)
        (IF1 (LOGIOR1 (LOG= (AG 'C S) 0)
                      (LOG= (AG 'Z S) 1))
@@ -238,7 +281,44 @@
             S))
 
 (DEFUN DO_BHI (S)
+       (IF1 (LOGAND1 (LOG= (AG 'C S) 1)
+                     (LOG= (AG 'Z S) 0))
+            (IF1 (LOG> (AG 'OP1 S) 127)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (- (AG 'OP1 S) 256))
+                           9 0)
+                     S)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (AG 'OP1 S)) 9 0)
+                     S))
+            S))
+
+(DEFUN DO_BHS (S)
        (IF1 (LOG= (AG 'C S) 1)
+            (IF1 (LOG> (AG 'OP1 S) 127)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (- (AG 'OP1 S) 256))
+                           9 0)
+                     S)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (AG 'OP1 S)) 9 0)
+                     S))
+            S))
+
+(DEFUN DO_BMI (S)
+       (IF1 (LOG= (AG 'N S) 1)
+            (IF1 (LOG> (AG 'OP1 S) 127)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (- (AG 'OP1 S) 256))
+                           9 0)
+                     S)
+                 (AS 'PC
+                     (BITS (+ (AG 'PC S) (AG 'OP1 S)) 9 0)
+                     S))
+            S))
+
+(DEFUN DO_BPL (S)
+       (IF1 (LOG= (AG 'N S) 0)
             (IF1 (LOG> (AG 'OP1 S) 127)
                  (AS 'PC
                      (BITS (+ (AG 'PC S) (- (AG 'OP1 S) 256))
@@ -260,46 +340,73 @@
   ((OPC (AG 'OPCODE S)))
   (IF1
    (LOG= OPC 1)
-   (DO_ADD S)
+   (DO_NOP S)
    (IF1
     (LOG= OPC 2)
-    (DO_ADDI S)
+    (DO_HALT S)
     (IF1
      (LOG= OPC 3)
-     (DO_B S)
+     (DO_ADD S)
      (IF1
       (LOG= OPC 4)
-      (DO_BEQ S)
+      (DO_ADDI S)
       (IF1
        (LOG= OPC 5)
-       (DO_BHI S)
+       (DO_ASR S)
        (IF1
         (LOG= OPC 6)
-        (DO_BLS S)
+        (DO_CMP S)
         (IF1
-          (LOG= OPC 7)
-          (DO_BNE S)
-          (IF1 (LOG= OPC 8)
-               (DO_CMP S)
-               (IF1 (LOG= OPC 9)
-                    (DO_CMPI S)
-                    (IF1 (LOG= OPC 10)
-                         (DO_CONST S)
-                         (IF1 (LOG= OPC 11)
-                              (DO_MUL S)
-                              (IF1 (LOG= OPC 12)
-                                   (DO_NOP S)
-                                   (IF1 (LOG= OPC 13)
-                                        (DO_SUB S)
-                                        (IF1 (LOG= OPC 14)
-                                             (DO_SUBI S)
-                                             (IF1 (LOG= OPC 15)
-                                                  (DO_HALT S)
-                                                  (IF1 (LOG= OPC 16)
-                                                       (DO_LDR S)
-                                                       (IF1 (LOG= OPC 17)
-                                                            (DO_STR S)
-                                                            S)))))))))))))))))))
+         (LOG= OPC 7)
+         (DO_CMPI S)
+         (IF1
+          (LOG= OPC 8)
+          (DO_CONST S)
+          (IF1
+           (LOG= OPC 9)
+           (DO_LSL S)
+           (IF1
+            (LOG= OPC 10)
+            (DO_LSR S)
+            (IF1
+             (LOG= OPC 11)
+             (DO_MUL S)
+             (IF1
+              (LOG= OPC 12)
+              (DO_SUB S)
+              (IF1
+               (LOG= OPC 13)
+               (DO_SUBI S)
+               (IF1
+                (LOG= OPC 14)
+                (DO_LDR S)
+                (IF1
+                 (LOG= OPC 15)
+                 (DO_STR S)
+                 (IF1
+                  (LOG= OPC 16)
+                  (DO_B S)
+                  (IF1
+                   (LOG= OPC 17)
+                   (DO_BEQ S)
+                   (IF1
+                    (LOG= OPC 18)
+                    (DO_BHI S)
+                    (IF1
+                     (LOG= OPC 19)
+                     (DO_BHS S)
+                     (IF1
+                       (LOG= OPC 20)
+                       (DO_BLO S)
+                       (IF1 (LOG= OPC 21)
+                            (DO_BLS S)
+                            (IF1 (LOG= OPC 22)
+                                 (DO_BMI S)
+                                 (IF1 (LOG= OPC 23)
+                                      (DO_BNE S)
+                                      (IF1 (LOG= OPC 24)
+                                           (DO_BPL S)
+                                           (DO_HALT S)))))))))))))))))))))))))))
 
 (DEFUN LEG64STEP (S)
        (DO_INST (NEXTINST S)))
@@ -314,6 +421,56 @@
 (DEFUN LEG64STEPS (S COUNT)
        (LEG64STEPS-LOOP-0 COUNT COUNT S))
 
+(DEFUN SETUPDMEM (BASE S)
+       (LET* ((S (AS 'DMEM
+                     (AS BASE (BITS 10 63 0) (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 1)
+                         (BITS 43 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 2)
+                         (BITS 4 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 3)
+                         (BITS 22 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 4)
+                         (BITS 7 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 5)
+                         (BITS 14 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 6)
+                         (BITS 43 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 7)
+                         (BITS 92 63 0)
+                         (AG 'DMEM S))
+                     S))
+              (S (AS 'DMEM
+                     (AS (+ BASE 8)
+                         (BITS 22 63 0)
+                         (AG 'DMEM S))
+                     S)))
+             (AS 'DMEM
+                 (AS (+ BASE 9)
+                     (BITS 43 63 0)
+                     (AG 'DMEM S))
+                 S)))
+
 (DEFUN DOFACTO3 (N S)
        (LET* ((S (AS 'REGS (AS 0 N (AG 'REGS S)) S))
               (S (AS 'REGS
@@ -322,7 +479,7 @@
               (K (BITS 0 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 10 255) 24)
+                         (BITS (LOGIOR (ASH (LOGAND 8 255) 24)
                                        (LOGAND N 255))
                                31 0)
                          (AG 'CMEM S))
@@ -330,7 +487,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 10 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 8 255) 24)
                                                (ASH 1 16))
                                        1)
                                31 0)
@@ -339,7 +496,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 9 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 7 255) 24)
                                                (ASH 1 8))
                                        0)
                                31 0)
@@ -348,7 +505,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 6 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 21 255) 24)
                                                (ASH 4 16))
                                        0)
                                31 0)
@@ -367,14 +524,14 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 14 255) 24) 1)
+                         (BITS (LOGIOR (ASH (LOGAND 13 255) 24) 1)
                                31 0)
                          (AG 'CMEM S))
                      S))
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 9 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 7 255) 24)
                                                (ASH 1 8))
                                        0)
                                31 0)
@@ -383,7 +540,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 7 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 23 255) 24)
                                                (ASH 252 16))
                                        0)
                                31 0)
@@ -392,7 +549,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 2 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 4 255) 24)
                                                (ASH 1 8))
                                        0)
                                31 0)
@@ -401,11 +558,11 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 15 255) 24) 0)
+                         (BITS (LOGIOR (ASH (LOGAND 2 255) 24) 0)
                                31 0)
                          (AG 'CMEM S))
                      S)))
-             (LEG64STEPS S (+ (+ 4 (* N 4)) 2))))
+             (LEG64STEPS S (+ (+ 4 (* (- N 1) 4)) 2))))
 
 (DEFUN DOFACT (N S)
        (LET* ((S (AS 'REGS (AS 0 N (AG 'REGS S)) S))
@@ -415,7 +572,7 @@
               (K (BITS 0 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 10 255) 24)
+                         (BITS (LOGIOR (ASH (LOGAND 8 255) 24)
                                        (LOGAND N 255))
                                31 0)
                          (AG 'CMEM S))
@@ -423,7 +580,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 10 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 8 255) 24)
                                                (ASH 1 16))
                                        1)
                                31 0)
@@ -432,7 +589,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 10 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 8 255) 24)
                                                (ASH 2 16))
                                        20)
                                31 0)
@@ -441,7 +598,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 8 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 6 255) 24)
                                                (ASH 2 8))
                                        0)
                                31 0)
@@ -450,7 +607,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 5 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 19 255) 24)
                                                (ASH 5 16))
                                        0)
                                31 0)
@@ -459,14 +616,14 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 9 255) 24) 0)
+                         (BITS (LOGIOR (ASH (LOGAND 7 255) 24) 0)
                                31 0)
                          (AG 'CMEM S))
                      S))
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 4 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 17 255) 24)
                                                (ASH 3 16))
                                        0)
                                31 0)
@@ -485,14 +642,14 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 14 255) 24) 1)
+                         (BITS (LOGIOR (ASH (LOGAND 13 255) 24) 1)
                                31 0)
                          (AG 'CMEM S))
                      S))
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 3 255) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 16 255) 24)
                                                (ASH 251 16))
                                        0)
                                31 0)
@@ -501,7 +658,7 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 2 251) 24)
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 4 255) 24)
                                                (ASH 1 8))
                                        0)
                                31 0)
@@ -510,9 +667,149 @@
               (K (BITS (+ K 1) 9 0))
               (S (AS 'CMEM
                      (AS K
-                         (BITS (LOGIOR (ASH (LOGAND 15 255) 24) 0)
+                         (BITS (LOGIOR (ASH (LOGAND 2 255) 24) 0)
                                31 0)
                          (AG 'CMEM S))
                      S)))
-             (LEG64STEPS S (+ (+ 5 (* N 5)) 3))))
+             (LEG64STEPS S (+ (+ 5 (* N 5)) 4))))
+
+(DEFUN DOSUMARR (ARR N S)
+       (LET* ((S (AS 'REGS (AS 0 ARR (AG 'REGS S)) S))
+              (S (AS 'REGS (AS 1 N (AG 'REGS S)) S))
+              (K (BITS 0 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 4 255) 24)
+                                               (ASH 5 16))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (ASH (LOGAND 8 255) 24) 0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 7 255) 24)
+                                               (ASH 1 16))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 17 255) 24)
+                                               (ASH 10 16))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 8 255) 24)
+                                               (ASH 2 16))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (LOGIOR (ASH (LOGAND 6 255) 24)
+                                                       (ASH 1 16))
+                                               (ASH 2 8))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 21 255) 24)
+                                               (ASH 7 16))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (LOGIOR (ASH (LOGAND 4 255) 24)
+                                                       (ASH 3 16))
+                                               (ASH 2 8))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (LOGIOR (ASH (LOGAND 9 255) 24)
+                                                       (ASH 3 16))
+                                               (ASH 3 8))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (LOGIOR (ASH (LOGAND 3 255) 24)
+                                                       (ASH 3 16))
+                                               (ASH 5 8))
+                                       3)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (LOGIOR (ASH (LOGAND 14 255) 24)
+                                                       (ASH 4 16))
+                                               (ASH 3 8))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (ASH (LOGAND 3 255) 24) 4)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (LOGIOR (ASH (LOGAND 4 255) 24)
+                                                       (ASH 2 16))
+                                               (ASH 2 8))
+                                       1)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (LOGIOR (ASH (LOGAND 16 255) 24)
+                                               (ASH 247 16))
+                                       0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S))
+              (K (BITS (+ K 1) 9 0))
+              (S (AS 'CMEM
+                     (AS K
+                         (BITS (LOGIOR (ASH (LOGAND 2 255) 24) 0)
+                               31 0)
+                         (AG 'CMEM S))
+                     S)))
+             (LEG64STEPS S (+ (+ 5 (* N 9)) 3))))
 

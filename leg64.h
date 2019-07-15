@@ -35,10 +35,12 @@ typedef ac_int<64,false> ui64;
 
 enum leg64regType {PC, SP, REG, DMEM, CMEM};
 
-//             0    1     2  3    4    5    6    7    8     9      10   11   12
-enum leg64ops {BAD, ADD, ADDI, B, BEQ, BHI, BLS, BNE, CMP, CMPI, CONST, MUL, NOP, 
-//             13   14    15    16   17
-               SUB, SUBI, HALT, LDR, STR};
+//             0    1    2     3    4     5    6    7     8      9    10   11
+enum leg64ops {BAD, NOP, HALT, ADD, ADDI, ASR, CMP, CMPI, CONST, LSL, LSR, MUL,
+//             12   13    14   15   16 17   18   19   20   21
+               SUB, SUBI, LDR, STR, B, BEQ, BHI, BHS, BLO, BLS,
+//             22   23   24
+               BMI, BNE, BPL};
 
 
 #define REG_SZ 256
@@ -46,7 +48,7 @@ enum leg64ops {BAD, ADD, ADDI, B, BEQ, BHI, BLS, BNE, CMP, CMPI, CONST, MUL, NOP
 #define DMEM_SZ 4096
 #define CMEM_SZ 1024
 
-// LEG64 machine state
+// leg64 machine state
 
 struct leg64St {
   ui10 pc;

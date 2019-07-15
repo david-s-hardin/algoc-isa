@@ -103,13 +103,13 @@
 ;                                     print pc in this base, 2, 8, 10, 16.
 
 (defconst *fact-routine*
-  '((0 . 150994944)      ;; (CMPI 0 0)      .L3  cmp(r0, 0)
-    (1 . 67305472)       ;; (BEQ .L2)            if ==, branch to .L2
+  '((0 . 117440512)      ;; (CMPI 0 0)      .L3  cmp(r0, 0)
+    (1 . 285409280)      ;; (BEQ .L2)            if ==, branch to .L2
     (2 . 184615168)      ;; (MUL 1 1 0)          r1 <- r1 * r0
-    (3 . 234881025)      ;; (SUBI 0 0 1)         r0 <- r0 - 1
-    (4 . 66781184)       ;; (B .L3)              branch to .L3
-    (5 . 33554688)       ;; (ADDI 0 1 0)    .L2  r0 <- r1
-    (6 . 251658240)))    ;; (HALT 0 0 0)         halt
+    (3 . 218103809)      ;; (SUBI 0 0 1)         r0 <- r0 - 1
+    (4 . 284884992)      ;; (B .L3)              branch to .L3
+    (5 . 67109120)       ;; (ADDI 0 1 0)    .L2  r0 <- r1
+    (6 . 33554432)))     ;; (HALT 0 0 0)         halt
 
 ; Note that the program computes the product of the naturals from
 ; reg[0] down to 0, leaving the product (aka factorial), multiplied

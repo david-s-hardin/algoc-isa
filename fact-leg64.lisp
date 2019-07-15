@@ -20,6 +20,11 @@
 
 (set-verify-guards-eagerness 0) ; local to the book above
 
+
+;; The following instructions are not used in the fact program, and
+;; are somewhat expensive to reason about, so disable them
+(in-theory (disable do_ASR do_LSL do_LSR))
+
 (DEFTHM SEM-0-CORRECT-AUX-1
   (IMPLIES
        (AND (EQUAL (AG 0 (AG 'REGS S)) 1)
@@ -48,7 +53,7 @@
                                               0
                                               (AS 'REGS
                                                   (AS 0 0 (AG 'REGS S))
-                                                  (AS 'OPCODE 3 S))))))))))))
+                                                  (AS 'OPCODE 16 S))))))))))))
   :INSTRUCTIONS (:PROMOTE (:DIVE 1)
                           (:REWRITE LEG64STEPN)
                           :S (:REWRITE LEG64STEPN)
@@ -100,7 +105,7 @@
                                                          (AG 1 (AG 'REGS S)))
                                                       63 0)
                                                 (AG 'REGS S)))
-                                        (AS 'OPCODE 3 S))))))))))
+                                        (AS 'OPCODE 16 S))))))))))
      C0)
     S0)
    (EQUAL (AG 'PC S) 0))
@@ -158,7 +163,7 @@
                                                          (AG 1 (AG 'REGS S)))
                                                       63 0)
                                                 (AG 'REGS S)))
-                                        (AS 'OPCODE 3 S))))))))))
+                                        (AS 'OPCODE 16 S))))))))))
      C0)
     S0)
    (EQUAL (AG 'PC S) 0))
